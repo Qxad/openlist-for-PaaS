@@ -4,7 +4,6 @@ on:
     - cron: '0 0 * * *'
   workflow_dispatch:
 
-# 必须声明写权限
 permissions:
   contents: write
 
@@ -15,21 +14,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download and Force Overwrite
+      - name: Force Update Binary
         run: |
+          # 1. 彻底删除仓库中可能存在的旧文件（假设文件名为 openlist）
+          # 如果你的二进制文件名不是 openlist，请修改此处
+          rm -f openlist
+          
+          # 2. 下载最新的压缩包
           echo "Downloading latest release..."
-          # 下载
           wget https://github.com/OpenListTeam/OpenList/releases/latest/download/openlist-linux-musl-amd64-lite.tar.gz
           
-          # 强制解压并覆盖现有的同名文件
-          # 注意：tar 默认会覆盖同名文件
+          # 3. 解压
+          # -j 参数可以直接解压出文件而不保留压缩包内的文件夹结构（如果有的话）
           tar -xzf openlist-linux-musl-amd64-lite.tar.gz
           
-          # 清理压缩包
+          # 4. 确保文件名统一
+          # 注意：根据 OpenList 的压缩包，解压出来的文件名通常就是 openlist
+          # 如果解压出来叫别名，请用 mv 重命名为你的目标文件名
+          # mv openlist-linux-musl-amd64-lite openlist 
+          
+          # 5. 清理压缩包
           rm openlist-linux-musl-amd64-lite.tar.gz
           
-          # 给二进制文件增加执行权限（防止解压后权限丢失）
-          # 假设二进制文件名叫 openlist，请根据实际情况修改
+          # 6. 赋予执行权限
           chmod +x openlist || true
 
       - name: Commit and Push
@@ -37,13 +44,9 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           
-          git add .
+          git add openlist
           
-          # 只有在有变动时才提交，防止因无变动导致的 Action 报错
-          # 如果你希望即使没变动也生成一个提交，可以改用 git commit --allow-empty
-          if ! git diff --staged --quiet; then
-            git commit -m "chore: force update OpenList binary to latest version"
-            git push
-          else
-            echo "Binary content is identical to the current version, skipping push."
-          fi
+          # 即使二进制内容一模一样，我们也强制提交（使用 --allow-empty）
+          # 如果你不想在没更新时产生多余提交，可以去掉 --allow-empty
+          git commit --allow-empty -m "chore: force replace openlist binary with latest release"
+          git push
